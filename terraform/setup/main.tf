@@ -30,7 +30,7 @@ resource "ibm_resource_group" "resource_group" {
 ## requires VRF and CSE enabled on the account.
 ###############################################################################
 resource "ibm_resource_instance" "sm_instance" {
-  name              = join("-", [var.prefix, "sm"])
+  name              = "secrets-vault"
   service           = "secrets-manager"
   plan              = "standard"      # "standard" or "trial"
   location          = var.region
