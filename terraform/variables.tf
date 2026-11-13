@@ -112,5 +112,5 @@ variable "edge_vpc_vpn_cidr" {
 
 variable "edge_vpc_public_cidr" {
   type = string
-  default = "192.168.0.0/24"
+  default = "192.168.0.0/22"
 }

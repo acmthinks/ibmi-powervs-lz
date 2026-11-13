@@ -217,11 +217,11 @@ resource "ibm_is_subnet" "vpn_server_subnet" {
 ## Rules:
 ##  #   | Direction | Action    | Protocol  | Source        | Destination
 ##  1   | inbound   | Allow     | UDP       | 0.0.0.0/0 any | 10.80.0.0/25 443
-##  2   | inbound   | Allow     | ALL       | 10.80.0.0/24  | 192.168.0.0/24
+##  2   | inbound   | Allow     | ALL       | 10.80.0.0/24  | 192.168.0.0/22
 ##  3   | inbound   | Deny      | ALL       | 0.0.0.0/0 any | 0.0.0.0/0 any
 ##
 ##  1   | outbound  | Allow     | UDP       | 10.80.0.0/25 443 | 0.0.0.0/0 any
-##  2   | outbound  | Allow     | ALL       | 192.168.0.0/24 | 10.80.0.0/24
+##  2   | outbound  | Allow     | ALL       | 192.168.0.0/22 | 10.80.0.0/24
 ##  3   | outbound  | Deny      | ALL       | 0.0.0.0/0 any | 0.0.0.0/0 any
 ###############################################################################
 resource "ibm_is_network_acl" "vpn_server_subnet_acl" {
