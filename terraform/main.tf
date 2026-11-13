@@ -154,7 +154,7 @@ output "catalog_image_ids" {
 ## Create a VPC on IBM Cloud
 ## Availability Zones: 1 (no need for failover in Dev)
 ## Name: edge-vpc
-## IP Address Range: 10.10.10.0/24 (256 IP addresses across all subnets)
+## IP Address Range: 10.80.0.0/24 (256 IP addresses across all subnets)
 ###############################################################################
 resource "ibm_is_vpc" "edge_vpc" {
   name = "edge-vpc"
@@ -175,7 +175,7 @@ resource "ibm_is_vpc_address_prefix" "edge_prefix" {
 
 ## Advertise the VPN client pool to the Transit Gateway.
 ## The TGW only learns VPC address prefixes. Without this prefix, PowerVS has no
-## return route to VPN clients, so traffic from a laptop to 10.5.0.0/24 times out.
+## return route to VPN clients, so traffic from a laptop to 10.90.0.0/24 times out.
 resource "ibm_is_vpc_address_prefix" "vpn_client_pool_prefix" {
   name = "vpn-client-pool-prefix"
   zone = var.vpc_zone
@@ -197,7 +197,7 @@ resource "ibm_is_vpc_routing_table" "tgw_ingress" {
 ###############################################################################
 ## Create Subnet #1: VPN Server Subnet
 ## Name: vpn-server-subnet
-## CIDR: 10.10.10.0/25 (128 IP addresses in the VPN Server subnet)
+## CIDR: 10.80.0.0/25 (128 IP addresses in the VPN Server subnet)
 ## Language: Terraform
 ###############################################################################
 resource "ibm_is_subnet" "vpn_server_subnet" {
@@ -216,12 +216,12 @@ resource "ibm_is_subnet" "vpn_server_subnet" {
 ## Name: vpn-server-subnet-acl
 ## Rules:
 ##  #   | Direction | Action    | Protocol  | Source        | Destination
-##  1   | inbound   | Allow     | UDP       | 0.0.0.0/0 any | 10.6.0.0/25 443
-##  2   | inbound   | Allow     | ALL       | 10.6.0.0/24  | 192.168.0.0/16
+##  1   | inbound   | Allow     | UDP       | 0.0.0.0/0 any | 10.80.0.0/25 443
+##  2   | inbound   | Allow     | ALL       | 10.80.0.0/24  | 192.168.0.0/24
 ##  3   | inbound   | Deny      | ALL       | 0.0.0.0/0 any | 0.0.0.0/0 any
 ##
-##  1   | outbound  | Allow     | UDP       | 10.6.0.0/25 443 | 0.0.0.0/0 any
-##  2   | outbound  | Allow     | ALL       | 192.168.0.0/16 | 10.6.0.0/24
+##  1   | outbound  | Allow     | UDP       | 10.80.0.0/25 443 | 0.0.0.0/0 any
+##  2   | outbound  | Allow     | ALL       | 192.168.0.0/24 | 10.80.0.0/24
 ##  3   | outbound  | Deny      | ALL       | 0.0.0.0/0 any | 0.0.0.0/0 any
 ###############################################################################
 resource "ibm_is_network_acl" "vpn_server_subnet_acl" {
@@ -310,11 +310,11 @@ resource "ibm_is_subnet_network_acl_attachment" "vpn_server_subnet_acl_attachmen
 ## Rules:
 ##  Direction | Protocol  | Source Type | Source        | Destination
 ##  inbound   | UDP       | Any         | 0.0.0.0/0     | 0.0.0.0/0 443
-##  inbound   | ALL       | CIDR block  | 10.6.0.0/24  | 0.0.0.0/0
+##  inbound   | ALL       | CIDR block  | 10.80.0.0/24  | 0.0.0.0/0
 ##
 ##  Direction | Protocol  | Source Type | Source        | Destination
 ##  egress    | UDP       | Any         | 0.0.0.0/0     | 0.0.0.0/0 443
-##  egress    | ALL       | CIDR block  | 0.0.0.0/0     | 10.6.0.0/24
+##  egress    | ALL       | CIDR block  | 0.0.0.0/0     | 10.80.0.0/24
 ###############################################################################
 resource "ibm_is_security_group" "vpn_server_sg" {
   name = "vpn-server-sg"

@@ -113,9 +113,9 @@ Terraform reads these secrets but does not create them. Add them to the Secrets 
    | `secrets_group_id` | ID of the `powervs-ssh-keys` secret group. |
    | `ssh_key_powervs_secret_name` | Name of the RSA public key secret (PowerVS). |
    | `vpn_certificate_name` | Name of the imported VPN certificate. |
-   | `powervs_subnet_cidr` | CIDR of the PowerVS private subnet, for example `10.5.0.0/24`. |
-   | `edge_vpc_address_prefix` | CIDR of the edge VPC, for example `10.6.0.0/24`. |
-   | `edge_vpc_vpn_cidr` | VPN server subnet inside the VPC range, for example `10.6.0.0/25`. |
+   | `powervs_subnet_cidr` | CIDR of the PowerVS private subnet, for example `10.90.0.0/24`. |
+   | `edge_vpc_address_prefix` | CIDR of the edge VPC, for example `10.80.0.0/24`. |
+   | `edge_vpc_vpn_cidr` | VPN server subnet inside the VPC range, for example `10.80.0.0/25`. |
    | `powervs_image_id` | IBM i catalog image ID for your PowerVS zone. |
    | `powervs_instance_cores`, `powervs_instance_memory`, `powervs_instance_data0_volume`, `powervs_instance_data0_tier`, `powervs_system_type` | Optional sizing. See [`terraform/variables.tf`](terraform/variables.tf) for defaults. |
 
