@@ -128,6 +128,53 @@ Terraform reads these secrets but does not create them. Add them to the Secrets 
 2. Connect the VPN.
 3. Reach the IBM i partition on the PowerVS subnet.
 
+### Step 5: Configure IBM i after deploy
+
+Terraform creates the partition but not its IBM i settings, so a new partition needs these one-time steps. They run on the partition itself, so repeat them after rebuilding it. The same steps are in the `message` output.
+
+1. Open the IBM i console: **Resources list** > your PowerVS workspace > **Virtual server instances** > `<prefix>-power-vsi` > **Actions** > **Open console**. Sign on as `QSECOFR`. If the system prompts for a new password, enter one and continue.
+2. Reset the `QSECOFR` password:
+
+   ```
+   CHGUSRPRF USRPRF(QSECOFR) PASSWORD(<new_password>) PWDEXP(*NO) STATUS(*ENABLED)
+   ```
+
+3. Accept the software license agreements with `WRKSFWAGR`. Accept every agreement that is not already accepted.
+4. Set the system values that affect 5250 sign-on:
+
+   | System value | Default | Set to | Why |
+   |---|---|---|---|
+   | `QAUTOVRT` | `0` | `100` (required) | At `0`, IBM i cannot create virtual devices. A Telnet session then fails with ACS response code `8917 Not authorized to object` before the sign-on screen. |
+   | `QLMTSECOFR` | `1` | `0` (optional) | At `1`, `QSECOFR` and any profile with `*ALLOBJ` or `*SERVICE` can sign on only at devices explicitly authorized to it. `0` allows any device. This loosens security, which is acceptable for a PoC behind the VPN. |
+
+   ```
+   CHGSYSVAL SYSVAL(QAUTOVRT) VALUE(100)
+   ```
+
+   `QLMTSECOFR` is a security system value and may be locked. If `CHGSYSVAL` fails with `CPF18C0` ("cannot be changed"), unlock it, change it, then lock it again:
+
+   ```
+   CHGSSTSECA SECSYSVAL(*YES)
+   CHGSYSVAL SYSVAL(QLMTSECOFR) VALUE('0')
+   CHGSSTSECA SECSYSVAL(*NO)
+   ```
+
+5. Start the Telnet server, and have it start after each IPL:
+
+   ```
+   STRTCPSVR SERVER(*TELNET)
+   CHGTELNA AUTOSTART(*YES)
+   ```
+
+6. Connect with ACS 5250 while the VPN is up. Use the partition IP address (the `message` output shows it) and port `23`. Leave the **Workstation ID** blank so IBM i creates a `QPADEV*` virtual device for the session.
+
+Troubleshooting:
+
+- **Connection refused on port 23:** the Telnet server is not started (step 5).
+- **`8917 Not authorized to object`:** check `QAUTOVRT` first (step 4).
+- **Ping to the PowerVS gateway works but not to the partition:** check `WRKTCPSTS OPTION(*IFC)`. If only `127.0.0.1` is listed, no TCP/IP interface is configured on the partition. The PowerVS subnet has DHCP disabled, so IBM i must define the interface itself (`CRTLINETH`, `ADDTCPIFC`, `STRTCPIFC`) and a default route to the subnet gateway (`ADDTCPRTE`). Match the Ethernet line to the partition's MAC address, which `ibmcloud pi instance get <id>` shows.
+- **Telnet is not encrypted.** Use SSH (port 22) where possible.
+
 ### Tear down
 
 Destroy in the reverse order: run **Destroy resources** on the `terraform` workspace first, then on the `terraform/setup` workspace.
