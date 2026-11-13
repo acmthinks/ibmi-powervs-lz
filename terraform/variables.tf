@@ -46,11 +46,13 @@ variable "secrets_group_id" {
 variable "ssh_key_powervs_secret_group_name" {
   type        = string
   description = "Secret Group Name holding the SSH keys for PowerVS instances"
+  default = "powervs-ssh-keys"
 }
 
 variable "ssh_key_powervs_secret_name" {
   type        = string
   description = "NAME of the Arbitrary Secret in Secrets Manager that contains the public ssh key contents that will be used to provision the Power instance"
+  default = "provision-ssh-key"
 }
 
 variable "vpn_certificate_name" {
