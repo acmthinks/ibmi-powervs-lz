@@ -108,12 +108,17 @@ resource "ibm_pi_instance" "powervs_instance" {
     }
 }
 
+# Affinity places the volume in the same storage pool as the instance. Without it
+# PowerVS can pick a different pool (e.g. General-Flash-1 vs General-Flash-4) and
+# the attach fails with a 409 Conflict.
 resource "ibm_pi_volume" "data0_volume"{
-  pi_cloud_instance_id = ibm_pi_workspace.powervs_workspace.id
-  pi_volume_size       = var.powervs_instance_data0_volume
-  pi_volume_name       = "data0-volume"
-  pi_volume_type       = var.powervs_instance_data0_tier
-  pi_volume_shareable  = false
+  pi_cloud_instance_id  = ibm_pi_workspace.powervs_workspace.id
+  pi_volume_size        = var.powervs_instance_data0_volume
+  pi_volume_name        = "data0-volume"
+  pi_volume_type        = var.powervs_instance_data0_tier
+  pi_volume_shareable   = false
+  pi_affinity_policy    = "affinity"
+  pi_affinity_instance  = ibm_pi_instance.powervs_instance.instance_id
 }
 
 # attach data volume to PowerVS instance
@@ -176,7 +181,10 @@ resource "ibm_is_vpc_address_prefix" "edge_prefix" {
 ## Advertise the VPN client pool to the Transit Gateway.
 ## The TGW only learns VPC address prefixes. Without this prefix, PowerVS has no
 ## return route to VPN clients, so traffic from a laptop to 10.90.0.0/24 times out.
+## NOTE: the VPN server API rejects a client IP pool that overlaps an existing VPC
+## address prefix, so this prefix must be created AFTER the VPN server.
 resource "ibm_is_vpc_address_prefix" "vpn_client_pool_prefix" {
+  depends_on = [ibm_is_vpn_server.vpn_server]
   name = "vpn-client-pool-prefix"
   zone = var.vpc_zone
   vpc  = ibm_is_vpc.edge_vpc.id
