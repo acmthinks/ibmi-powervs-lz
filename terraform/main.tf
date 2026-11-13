@@ -110,8 +110,10 @@ resource "ibm_pi_instance" "powervs_instance" {
 
 # Affinity places the volume in the same storage pool as the instance. Without it
 # PowerVS can pick a different pool (e.g. General-Flash-1 vs General-Flash-4) and
-# the attach fails with a 409 Conflict.
-resource "ibm_pi_volume" "data0_volume"{
+# the attach fails with a 409 Conflict. Affinity only applies at creation time, so
+# the resource label was changed (data0_volume -> data0_volume_affinity) to force
+# the old, wrong-pool volume to be destroyed and recreated.
+resource "ibm_pi_volume" "data0_volume_affinity"{
   pi_cloud_instance_id  = ibm_pi_workspace.powervs_workspace.id
   pi_volume_size        = var.powervs_instance_data0_volume
   pi_volume_name        = "data0-volume"
@@ -124,7 +126,7 @@ resource "ibm_pi_volume" "data0_volume"{
 # attach data volume to PowerVS instance
 resource "ibm_pi_volume_attach" "data0_volume_attach"{
   pi_cloud_instance_id = ibm_pi_workspace.powervs_workspace.id
-  pi_volume_id = ibm_pi_volume.data0_volume.volume_id
+  pi_volume_id = ibm_pi_volume.data0_volume_affinity.volume_id
   pi_instance_id = ibm_pi_instance.powervs_instance.instance_id
 }
 
