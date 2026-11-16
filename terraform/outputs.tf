@@ -12,7 +12,8 @@ output "message" {
            Sign on as QSECOFR at the console sign-on screen. If the system prompts you to change an
            expired password, enter a new one when asked and continue.
 
-       2b. Reset the QSECOFR password (CL command line):
+       2b. Follow the prompts to change the password (USERID: QSECOFR). Passwords must be a minimum of 15
+           characters in length. Be sure to include single quotes (') around the PASSWORD parameter.
 
            CHGUSRPRF USRPRF(QSECOFR) PASSWORD(<new_password>) PWDEXP(*NO) STATUS(*ENABLED)
 
@@ -27,18 +28,24 @@ output "message" {
 
            QAUTOVRT (required). The default is 0, which stops IBM i from creating virtual devices, so the
            Telnet session fails with ACS response code 8917 "Not authorized to object" before the sign-on
-           screen appears. Allow virtual devices:
-
-           CHGSYSVAL SYSVAL(QAUTOVRT) VALUE(100)
+           screen appears. Allow virtual devices.
 
            QLMTSECOFR (optional). The default is 1, so QSECOFR, and any profile with *ALLOBJ or *SERVICE,
            can sign on only at devices it has been explicitly authorized to. Setting it to 0 allows sign-on
-           from any device. This loosens security; it is acceptable for a PoC behind the VPN. This is a
-           security-related system value and may be locked (message CPF18C0 "cannot be changed"). Unlock it,
-           change it, then lock it again:
+           from any device. This loosens security; it is acceptable for a PoC behind the VPN.
+
+           QLMTDEVSSN (optional). The default is 1, QSECOFR only allows 1 device per session (default).
+           To allow more than 1 concurrent session with the QSECOFR user, change the number of concurrent
+           devices. Setting the value to 0 will allow unlimited devices. Or set a value greater than 1 to
+           allow more than one device per session.
+
+           These are security-related system values and may be locked (message CPF18C0 "cannot be changed").
+           Unlock it, change it, then lock it again:
 
            CHGSSTSECA SECSYSVAL(*YES)
+           CHGSYSVAL SYSVAL(QAUTOVRT) VALUE(100)
            CHGSYSVAL SYSVAL(QLMTSECOFR) VALUE('0')
+           CHGSYSVAL SYSVAL(QLMTDEVSSN) VALUE('0')
            CHGSSTSECA SECSYSVAL(*NO)
 
            Verify with: DSPSYSVAL SYSVAL(QAUTOVRT) and DSPSYSVAL SYSVAL(QLMTSECOFR)
@@ -46,16 +53,18 @@ output "message" {
            These values are set on the IBM i LPAR itself, not by Terraform, so repeat them after
            rebuilding an LPAR.
 
-       2e. Connect with ACS 5250 (while connected to OpenVPN):
-           Host: ${ibm_pi_instance.powervs_instance.pi_network[0].ip_address}, Port: 23
-           Leave the Workstation ID blank so IBM i creates a virtual device (QPADEV*) for the session.
-           If the connection is refused, make sure the Telnet server is started (CL command line using the IBM i console in step 2a):
+       2e. Start the Telnet server:
 
            STRTCPSVR SERVER(*TELNET)
 
            To restart the Telnet service after IPL:
 
            CHGTELNA AUTOSTART(*YES)
+
+       2f. Connect with ACS 5250 (while connected to OpenVPN):
+           Host: ${ibm_pi_instance.powervs_instance.pi_network[0].ip_address}, Port: 23
+           Leave the Workstation ID blank so IBM i creates a virtual device (QPADEV*) for the session.
+           Logon with QSECOFR and the newly reset password.
 
     EOM
 }
