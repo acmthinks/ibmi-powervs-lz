@@ -1,6 +1,7 @@
 output "message" {
     value = <<EOM
     1. Connect with OpenVPN. Be sure to download the client profile template (locally) and specify your certificate and private key.
+
     2. Manual IBM i configuration after provisioning (one time, from the IBM Cloud console).
 
        The commands below reset the QSECOFR password, accept the software license agreements, and set the
@@ -65,6 +66,67 @@ output "message" {
            Host: ${ibm_pi_instance.powervs_instance.pi_network[0].ip_address}, Port: 23
            Leave the Workstation ID blank so IBM i creates a virtual device (QPADEV*) for the session.
            Logon with QSECOFR and the newly reset password.
+
+    3. Enable SSH to support connection with IBM Bob.
+
+       3a. Update the sshd_config file to permit root login with QSECOFR:
+
+           CALL QP2TERM
+           sed 's/^#PermitRootLogin prohibit-password/PermitRootLogin yes/' /QOpenSys/QIBM/ProdData/SC1/OpenSSH/etc/sshd_config > /tmp/sshd_config.new
+           cp /QOpenSys/QIBM/ProdData/SC1/OpenSSH/etc/sshd_config /tmp/sshd_config.bak
+           cp /tmp/sshd_config.new /QOpenSys/QIBM/ProdData/SC1/OpenSSH/etc/sshd_config
+           grep -n PermitRootLogin /QOpenSys/QIBM/ProdData/SC1/OpenSSH/etc/sshd_config
+
+           sed 's/^#PubkeyAuthentication yes/PubkeyAuthentication yes/' /QOpenSys/QIBM/ProdData/SC1/OpenSSH/etc/sshd_config > /tmp/sshd_config.new
+           cp /QOpenSys/QIBM/ProdData/SC1/OpenSSH/etc/sshd_config /tmp/sshd_config.bak
+           cp /tmp/sshd_config.new /QOpenSys/QIBM/ProdData/SC1/OpenSSH/etc/sshd_config
+           grep -n PubkeyAuthentication /QOpenSys/QIBM/ProdData/SC1/OpenSSH/etc/sshd_config
+
+           sed 's/^#PasswordAuthentication yes/PasswordAuthentication no/' /QOpenSys/QIBM/ProdData/SC1/OpenSSH/etc/sshd_config > /tmp/sshd_config.new
+           cp /QOpenSys/QIBM/ProdData/SC1/OpenSSH/etc/sshd_config /tmp/sshd_config.bak
+           cp /tmp/sshd_config.new /QOpenSys/QIBM/ProdData/SC1/OpenSSH/etc/sshd_config
+           grep -n PasswordAuthentication /QOpenSys/QIBM/ProdData/SC1/OpenSSH/etc/sshd_config
+
+           /QOpenSys/QIBM/ProdData/SC1/OpenSSH/sbin/sshd -T | grep -i PermitRootLogin
+           /QOpenSys/QIBM/ProdData/SC1/OpenSSH/sbin/sshd -T | grep -i PubkeyAuthentication
+           /QOpenSys/QIBM/ProdData/SC1/OpenSSH/sbin/sshd -T | grep -i PasswordAuthentication
+
+       3b. Start the SSH server. If SSHD is already running, restart it so that it reads the
+           updated sshd_config (a running sshd keeps the old settings until it is restarted):
+
+           ENDTCPSVR SERVER(*SSHD)
+           STRTCPSVR SERVER(*SSHD)
+
+           To restart the SSHD service after IPL:
+
+           CHGSSHA AUTOSTART(*YES)
+
+       3c. Authorize your public key for QSECOFR. The key registered with PowerVS is NOT installed for
+           QSECOFR, so sshd rejects public key logon until it is added to authorized_keys. sshd also
+           refuses keys if the home directory or .ssh are group/world writable (StrictModes):
+
+           CALL QP2TERM
+           mkdir -p /home/QSECOFR/.ssh
+           chmod 755 /home/QSECOFR
+           chmod 700 /home/QSECOFR/.ssh
+           echo '<contents of your ~/.ssh/id_ed25519.pub>' >> /home/QSECOFR/.ssh/authorized_keys
+           chmod 600 /home/QSECOFR/.ssh/authorized_keys
+           ssh-keygen -lf /home/QSECOFR/.ssh/authorized_keys
+
+           A 5250 session wraps long lines and can corrupt the pasted key. If the fingerprint printed by
+           ssh-keygen does not match "ssh-keygen -lf ~/.ssh/id_ed25519.pub" on your workstation, rewrite the
+           key in short pieces with printf '%s' '<first part>' > file, then printf '%s\n' '<rest>' >> file.
+
+           Then connect from your workstation (while connected to OpenVPN):
+
+           ssh -i ~/.ssh/id_ed25519 QSECOFR@${ibm_pi_instance.powervs_instance.pi_network[0].ip_address}
+
+       4. Launch your local IDE, IBM Bob. Connect to the PowerVS LPAR with the folowing:
+           Host or IP Address: ${ibm_pi_instance.powervs_instance.pi_network[0].ip_address}
+           Port (SSH): 22
+           Username: QSECOFR
+           Private Key: <upload the private key file, i.e. id_ed25519 from your local workstation)
+           Key Passphrase (stored): <your passphrase for your private key file>
 
     EOM
 }
