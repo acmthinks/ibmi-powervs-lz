@@ -14,9 +14,7 @@ output "message" {
            expired password, enter a new one when asked and continue.
 
        2b. Follow the prompts to change the password (USERID: QSECOFR). Passwords must be a minimum of 15
-           characters in length. Be sure to include single quotes (') around the PASSWORD parameter.
-
-           CHGUSRPRF USRPRF(QSECOFR) PASSWORD(<new_password>) PWDEXP(*NO) STATUS(*ENABLED)
+           characters in length. You may have to IPL the system to continue.
 
        2c. Accept the software license agreements, if they have not been accepted already (CL command line):
 
@@ -62,46 +60,18 @@ output "message" {
 
            CHGTELNA AUTOSTART(*YES)
 
-       2f. Connect with ACS 5250 (while connected to OpenVPN):
+       2f. Enable the profile for QSECOFR to logon. Be sure to include single quotes (') around the PASSWORD parameter.
+
+           CHGUSRPRF USRPRF(QSECOFR) PASSWORD(<new_password>) PWDEXP(*NO) STATUS(*ENABLED)
+
+       2g. Connect with ACS 5250 (while connected to OpenVPN):
            Host: ${ibm_pi_instance.powervs_instance.pi_network[0].ip_address}, Port: 23
            Leave the Workstation ID blank so IBM i creates a virtual device (QPADEV*) for the session.
            Logon with QSECOFR and the newly reset password.
 
     3. Enable SSH to support connection with IBM Bob.
 
-       3a. Update the sshd_config file to permit root login with QSECOFR:
-
-           CALL QP2TERM
-           sed 's/^#PermitRootLogin prohibit-password/PermitRootLogin yes/' /QOpenSys/QIBM/ProdData/SC1/OpenSSH/etc/sshd_config > /tmp/sshd_config.new
-           cp /QOpenSys/QIBM/ProdData/SC1/OpenSSH/etc/sshd_config /tmp/sshd_config.bak
-           cp /tmp/sshd_config.new /QOpenSys/QIBM/ProdData/SC1/OpenSSH/etc/sshd_config
-           grep -n PermitRootLogin /QOpenSys/QIBM/ProdData/SC1/OpenSSH/etc/sshd_config
-
-           sed 's/^#PubkeyAuthentication yes/PubkeyAuthentication yes/' /QOpenSys/QIBM/ProdData/SC1/OpenSSH/etc/sshd_config > /tmp/sshd_config.new
-           cp /QOpenSys/QIBM/ProdData/SC1/OpenSSH/etc/sshd_config /tmp/sshd_config.bak
-           cp /tmp/sshd_config.new /QOpenSys/QIBM/ProdData/SC1/OpenSSH/etc/sshd_config
-           grep -n PubkeyAuthentication /QOpenSys/QIBM/ProdData/SC1/OpenSSH/etc/sshd_config
-
-           sed 's/^#PasswordAuthentication yes/PasswordAuthentication no/' /QOpenSys/QIBM/ProdData/SC1/OpenSSH/etc/sshd_config > /tmp/sshd_config.new
-           cp /QOpenSys/QIBM/ProdData/SC1/OpenSSH/etc/sshd_config /tmp/sshd_config.bak
-           cp /tmp/sshd_config.new /QOpenSys/QIBM/ProdData/SC1/OpenSSH/etc/sshd_config
-           grep -n PasswordAuthentication /QOpenSys/QIBM/ProdData/SC1/OpenSSH/etc/sshd_config
-
-           /QOpenSys/QIBM/ProdData/SC1/OpenSSH/sbin/sshd -T | grep -i PermitRootLogin
-           /QOpenSys/QIBM/ProdData/SC1/OpenSSH/sbin/sshd -T | grep -i PubkeyAuthentication
-           /QOpenSys/QIBM/ProdData/SC1/OpenSSH/sbin/sshd -T | grep -i PasswordAuthentication
-
-       3b. Start the SSH server. If SSHD is already running, restart it so that it reads the
-           updated sshd_config (a running sshd keeps the old settings until it is restarted):
-
-           ENDTCPSVR SERVER(*SSHD)
-           STRTCPSVR SERVER(*SSHD)
-
-           To restart the SSHD service after IPL:
-
-           CHGSSHA AUTOSTART(*YES)
-
-       3c. Authorize your public key for QSECOFR. The key registered with PowerVS is NOT installed for
+       3a. Copy your public key for QSECOFR. The key registered with PowerVS is NOT installed for
            QSECOFR, so sshd rejects public key logon until it is added to authorized_keys. sshd also
            refuses keys if the home directory or .ssh are group/world writable (StrictModes):
 
@@ -117,7 +87,30 @@ output "message" {
            ssh-keygen does not match "ssh-keygen -lf ~/.ssh/id_ed25519.pub" on your workstation, rewrite the
            key in short pieces with printf '%s' '<first part>' > file, then printf '%s\n' '<rest>' >> file.
 
-           Then connect from your workstation (while connected to OpenVPN):
+       3b. Update the sshd_config file to permit root login with QSECOFR, enable public key
+           authentication, and disable password and challenge-response authentication:
+
+           CALL QP2TERM
+           cp /QOpenSys/QIBM/ProdData/SC1/OpenSSH/etc/sshd_config /tmp/sshd_config.bak
+           sed -e 's/^#PermitRootLogin prohibit-password/PermitRootLogin yes/' -e 's/^#PubkeyAuthentication yes/PubkeyAuthentication yes/' -e 's/^#PasswordAuthentication yes/PasswordAuthentication no/' -e 's/^#ChallengeResponseAuthentication yes/ChallengeResponseAuthentication no/' /tmp/sshd_config.bak > /tmp/sshd_config.new
+           cp /tmp/sshd_config.new /QOpenSys/QIBM/ProdData/SC1/OpenSSH/etc/sshd_config
+           grep -nE 'PermitRootLogin|PubkeyAuthentication|PasswordAuthentication|ChallengeResponseAuthentication' /QOpenSys/QIBM/ProdData/SC1/OpenSSH/etc/sshd_config
+
+           Confirm the settings sshd will use:
+
+           /QOpenSys/QIBM/ProdData/SC1/OpenSSH/sbin/sshd -T | grep -iE 'permitrootlogin|pubkeyauthentication|passwordauthentication|kbdinteractiveauthentication'
+
+       3c. Start the SSH server. If SSHD is already running, restart it so that it reads the
+           updated sshd_config (a running sshd keeps the old settings until it is restarted):
+
+           ENDTCPSVR SERVER(*SSHD)
+           STRTCPSVR SERVER(*SSHD)
+
+           To restart the SSHD service after IPL:
+
+           CHGSSHA AUTOSTART(*YES)
+
+       3d. SSH into the IBM i LPAR, connect from your workstation (while connected to OpenVPN):
 
            ssh -i ~/.ssh/id_ed25519 QSECOFR@${ibm_pi_instance.powervs_instance.pi_network[0].ip_address}
 
