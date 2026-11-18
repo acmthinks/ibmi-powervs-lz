@@ -77,7 +77,7 @@ output "message" {
 
            CALL QP2TERM
            mkdir -p /home/QSECOFR/.ssh
-           chmod 755 /home/QSECOFR
+           chmod 750 /home/QSECOFR
            chmod 700 /home/QSECOFR/.ssh
            echo '<contents of your ~/.ssh/id_ed25519.pub>' >> /home/QSECOFR/.ssh/authorized_keys
            chmod 600 /home/QSECOFR/.ssh/authorized_keys
@@ -106,9 +106,12 @@ output "message" {
            ENDTCPSVR SERVER(*SSHD)
            STRTCPSVR SERVER(*SSHD)
 
-           To restart the SSHD service after IPL:
+           SSHD is defined to start automatically when TCP/IP starts (at IPL). To confirm,
+           run STRSQL on the 5250 session (or use ACS Run SQL Scripts), then enter the
+           following statement at the SQL prompt - AUTOSTART should be *YES:
 
-           CHGSSHA AUTOSTART(*YES)
+           STRSQL
+           SELECT SERVER, AUTOSTART FROM QUSRSYS.QATOCSTART WHERE SERVER = '*SSHD'
 
        3d. SSH into the IBM i LPAR, connect from your workstation (while connected to OpenVPN):
 
