@@ -124,5 +124,16 @@ output "message" {
            Private Key: <upload the private key file, i.e. id_ed25519 from your local workstation)
            Key Passphrase (stored): <your passphrase for your private key file>
 
+       5. Shutting down safely. Stopping or restarting the instance from the PowerVS console,
+           the IBM Cloud API or Terraform can power off the LPAR without a normal IBM i shutdown.
+           The next IPL is then abnormal (message CPI091D "Previous ending abnormal, reason
+           code 6") and can leave files such as authorized_keys or sshd host keys unsaved.
+           Before stopping or restarting the instance, sign on to 5250 as QSECOFR and run:
+
+           PWRDWNSYS OPTION(*CNTRLD) DELAY(120)
+
+           Add RESTART(*YES) to restart (IPL) the LPAR instead of powering it off. Wait for the
+           LPAR status in PowerVS to show SHUTOFF before making changes to the instance.
+
     EOM
 }
